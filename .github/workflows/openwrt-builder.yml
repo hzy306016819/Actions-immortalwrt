@@ -143,7 +143,7 @@ jobs:
          echo "status=success" >> $GITHUB_OUTPUT
 
     - name: 将固件上传到release
-      uses: softprops/action-gh-release@V1
+      uses: softprops/action-gh-release@master
       if: steps.tag.outputs.status == 'success' && !cancelled()
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
