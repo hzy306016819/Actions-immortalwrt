@@ -155,14 +155,14 @@ jobs:
     - name: 删除工作流运行
       uses: Mattraks/delete-workflow-runs@v2
       with:
-        retain_days: 0
-        keep_minimum_runs: 2
+        retain_days: 0       # 不保留历史记录
+        keep_minimum_runs: 10 # 但至少保留2个最新记录
 
     - name: 删除旧的releases
       uses: dev-drprasad/delete-older-releases@v0.2.1
       if: env.UPLOAD_RELEASE == 'true' && !cancelled()
       with:
-        keep_latest: 3
-        delete_tags: true
+        keep_latest: 30   # 保留最新的30个Release
+        delete_tags: true   # 同时删除关联的标签
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
