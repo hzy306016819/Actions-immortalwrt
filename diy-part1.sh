@@ -16,3 +16,7 @@
 # Add a feed source
 #echo 'src-git helloworld https://github.com/fw876/helloworld' >>feeds.conf.default
 #echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >>feeds.conf.default
+
+# Add package
+mkdir -p package/custom
+git clone https://github.com/hzy306016819/ssid-auto.git package/custom/ssid-auto
