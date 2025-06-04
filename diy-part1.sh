@@ -18,5 +18,6 @@
 #echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >>feeds.conf.default
 
 # Add package
+# 增加ssid-auto到package/custom
 mkdir -p package/custom
 git clone https://github.com/hzy306016819/ssid-auto.git package/custom/ssid-auto
