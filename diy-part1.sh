@@ -19,5 +19,5 @@
 
 # Add package
 # 增加ssid-auto到package/custom
-mkdir -p package/custom
+mkdir -p openwrt/package/custom
 git clone https://github.com/hzy306016819/ssid-auto.git package/custom/ssid-auto
