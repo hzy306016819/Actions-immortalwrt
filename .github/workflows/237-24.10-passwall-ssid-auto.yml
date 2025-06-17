@@ -57,8 +57,8 @@ jobs:
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
 
-    - name: 创建文件夹拉取ssid-auto软件源
-      run: cd openwrt && mkdir -p package/custom  && git clone https://github.com/hzy306016819/ssid-auto.git package/custom/ssid-auto
+    - name: 创建文件夹拉取overview-widgets软件源
+      run: cd openwrt && git clone https://github.com/hzy306016819/luci-app-overview-widgets.git package/overview-widgets
 
     - name: 更新软件源
       run: cd openwrt && ./scripts/feeds update -a
