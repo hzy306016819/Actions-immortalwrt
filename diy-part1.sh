@@ -17,6 +17,9 @@
 #echo 'src-git helloworld https://github.com/fw876/helloworld' >>feeds.conf.default
 #echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >>feeds.conf.default
 
+# 添加 luci-app-overview-widgets 插件
+echo 'src-git overview_widgets https://github.com/hzy306016819/luci-app-overview-widgets.git' >> feeds.conf.default
+
 # Add package
 # 增加ssid-auto到package/custom
 # mkdir -p openwrt/package/custom
