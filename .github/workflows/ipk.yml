@@ -1,28 +1,27 @@
-name: luci-app-overview-widgets-ipk
+name: Build luci-app-overview-widgets Plugin
 
 on:
-  repository_dispatch:
   workflow_dispatch:
+  repository_dispatch:
 
 env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-24.10
   REPO_BRANCH: 2410
-  FEEDS_CONF: feeds.conf.default
+  PLUGIN_NAME: luci-app-overview-widgets
+  PLUGIN_REPO: https://github.com/hzy306016819/luci-app-overview-widgets.git
   TZ: Asia/Shanghai
-  PLUGIN_NAME: luci-app-overview-widgets  # 要编译的插件名称
-  PLUGIN_REPO: https://github.com/hzy306016819/luci-app-overview-widgets.git  # 插件仓库地址
 
 jobs:
   build:
     runs-on: ubuntu-22.04
     permissions:
-      contents: write  # 需要有写入权限来创建release
+      contents: write
 
     steps:
-    - name: 检查项目分支
+    - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: 初始化编译环境
+    - name: Set up environment
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
@@ -30,110 +29,109 @@ jobs:
         sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
         sudo docker image prune --all --force
         
-        # 安装必要的编译工具
-        sudo -E apt-get -qq update
-        sudo -E apt-get -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libfuse-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libpython3-dev libreadline-dev libssl-dev libtool lrzsz mkisofs msmtp ninja-build p7zip p7zip-full patch pkgconf python2.7 python3 python3-pyelftools python3-setuptools qemu-utils rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
-       
-        # 清理和设置时区
-        sudo -E apt-get -qq autoremove --purge
-        sudo -E apt-get -qq clean
+        # 安装编译依赖
+        sudo apt-get -qq update
+        sudo apt-get -qq install build-essential ccache flex gawk gettext git libncurses5-dev libssl-dev python3 python3-distutils zlib1g-dev
         sudo timedatectl set-timezone "$TZ"
         
         # 创建工作目录
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
 
-    - name: 下载源码
+    - name: Clone OpenWrt source
       working-directory: /workdir
       run: |
-        # 克隆OpenWrt源码
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-    - name: 更新和安装feeds
+    - name: Update feeds
       run: |
         cd openwrt
-        # 更新feeds
         ./scripts/feeds update -a
-        # 安装feeds
         ./scripts/feeds install -a
 
-    - name: 克隆插件源码
+    - name: Clone plugin source
       run: |
         cd openwrt
-        # 克隆指定的插件源码到package目录
         git clone $PLUGIN_REPO package/$PLUGIN_NAME
 
-    - name: 配置编译环境
+    - name: Fix libdeflate issue
       run: |
         cd openwrt
-        # 只编译我们需要的插件
-        echo "CONFIG_TARGET_linux=y" > .config
-        echo "CONFIG_TARGET_linux_default=y" >> .config
-        echo "CONFIG_PACKAGE_$PLUGIN_NAME=y" >> .config
-        # 使配置生效
-        make defconfig
+        # 确保libdeflate工具链先编译
+        make tools/libdeflate/compile -j$(nproc)
+        make tools/libdeflate/install
+        
+        # 后备方案：如果编译失败则使用系统gzip
+        if [ ! -f staging_dir/host/bin/libdeflate-gzip ]; then
+          echo "Using system gzip as fallback"
+          ln -sf $(which gzip) staging_dir/host/bin/libdeflate-gzip
+        fi
 
-    - name: 编译插件
+    - name: Build plugin
       run: |
         cd openwrt
-        # 只编译指定的插件
+        # 配置仅编译插件
+        echo "CONFIG_PACKAGE_$PLUGIN_NAME=y" > .config
+        make defconfig
+        
+        # 编译插件及其依赖
+        make package/utils/lua/host/compile -j$(nproc)
         make package/$PLUGIN_NAME/compile -j$(nproc) V=s
 
-    - name: 收集编译好的插件
+    - name: Collect artifacts
       id: collect
       run: |
         cd openwrt
-        # 查找编译好的ipk文件
+        # 查找生成的ipk文件
         IPK_FILE=$(find bin -name "${PLUGIN_NAME}*.ipk" | head -n 1)
         if [ -f "$IPK_FILE" ]; then
-          echo "插件编译成功: $IPK_FILE"
+          echo "Plugin built successfully: $IPK_FILE"
           mkdir -p plugin_output
           cp $IPK_FILE plugin_output/
           echo "status=success" >> $GITHUB_OUTPUT
           echo "IPK_PATH=$(pwd)/plugin_output" >> $GITHUB_ENV
         else
-          echo "未找到编译好的插件文件"
+          echo "Error: Plugin IPK file not found!"
           exit 1
         fi
 
-    - name: 创建release标签
-      id: tag
+    - name: Create release
       if: steps.collect.outputs.status == 'success'
       run: |
-        # 创建release信息
         time=$(date +%Y.%m.%d)
         release_tag="plugin-${PLUGIN_NAME}-$time"
-        release_name="${PLUGIN_NAME}插件-$time"
-        echo "这是一个自动编译的 ${PLUGIN_NAME} 插件
-        编译时间: $(date +'%Y年%m月%d日 %H点%M分%S秒')
-        源码仓库: ${PLUGIN_REPO}
-        OpenWrt版本: ${REPO_URL} (${REPO_BRANCH}分支)" > release.txt
+        release_name="${PLUGIN_NAME}-$time"
         
-        echo "release_name=$release_name" >> $GITHUB_OUTPUT
-        echo "release_tag=$release_tag" >> $GITHUB_OUTPUT
+        echo "Automatically built ${PLUGIN_NAME} plugin" > release.txt
+        echo "Build date: $(date +'%Y-%m-%d %H:%M:%S')" >> release.txt
+        echo "Source repo: ${PLUGIN_REPO}" >> release.txt
+        echo "OpenWrt version: ${REPO_URL} (${REPO_BRANCH} branch)" >> release.txt
+        
+        echo "release_tag=$release_tag" >> $GITHUB_ENV
+        echo "release_name=$release_name" >> $GITHUB_ENV
 
-    - name: 上传插件到release
+    - name: Upload release
       uses: softprops/action-gh-release@v1
-      if: steps.tag.outputs.release_tag != '' && steps.collect.outputs.status == 'success'
+      if: steps.collect.outputs.status == 'success'
       with:
-        tag_name: ${{ steps.tag.outputs.release_tag }}
-        name: ${{ steps.tag.outputs.release_name }}
+        tag_name: ${{ env.release_tag }}
+        name: ${{ env.release_name }}
         body_path: release.txt
-        files: ${{ env.IPK_PATH }}/*.ipk  # 上传所有找到的ipk文件
+        files: ${{ env.IPK_PATH }}/*.ipk
         draft: false
         prerelease: false
 
-    - name: 删除工作流运行记录
+    - name: Clean up old workflows
       uses: Mattraks/delete-workflow-runs@v2
       with:
-        retain_days: 0       # 不保留历史记录
-        keep_minimum_runs: 10 # 保留最新的10个记录
+        retain_days: 0
+        keep_minimum_runs: 10
 
-    - name: 删除旧的releases
+    - name: Clean up old releases
       uses: dev-drprasad/delete-older-releases@v0.2.1
       with:
-        keep_latest: 30   # 保留最新的30个Release
-        delete_tags: true   # 同时删除关联的标签
+        keep_latest: 30
+        delete_tags: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
