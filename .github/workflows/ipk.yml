@@ -1,8 +1,8 @@
 name: Build luci-app-overview-widgets Plugin
 
 on:
-  workflow_dispatch:
-  repository_dispatch:
+  workflow_dispatch:  # 手动触发
+  repository_dispatch:  # 仓库事件触发
 
 env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-24.10
@@ -15,13 +15,15 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     permissions:
-      contents: write
+      contents: write  # 允许写入发布内容
 
     steps:
-    - name: Checkout code
+    # 第一步：检出代码
+    - name: 检出仓库代码
       uses: actions/checkout@v4
 
-    - name: Set up environment
+    # 第二步：设置编译环境
+    - name: 初始化编译环境
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
@@ -29,7 +31,7 @@ jobs:
         sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
         sudo docker image prune --all --force
         
-        # 安装编译依赖
+        # 安装基本编译工具
         sudo apt-get -qq update
         sudo apt-get -qq install build-essential ccache flex gawk gettext git libncurses5-dev libssl-dev python3 python3-distutils zlib1g-dev
         sudo timedatectl set-timezone "$TZ"
@@ -38,80 +40,94 @@ jobs:
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
 
-    - name: Clone OpenWrt source
+    # 第三步：下载OpenWrt源码
+    - name: 克隆OpenWrt源码
       working-directory: /workdir
       run: |
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-    - name: Update feeds
+    # 第四步：更新软件源
+    - name: 更新软件源
       run: |
         cd openwrt
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Clone plugin source
+    # 第五步：克隆插件源码
+    - name: 获取插件源代码
       run: |
         cd openwrt
         git clone $PLUGIN_REPO package/$PLUGIN_NAME
 
-    - name: Fix libdeflate issue
+    # 第六步：修复已知问题
+    - name: 修复编译环境问题
       run: |
         cd openwrt
-        # 确保libdeflate工具链先编译
-        make tools/libdeflate/compile -j$(nproc)
-        make tools/libdeflate/install
         
-        # 后备方案：如果编译失败则使用系统gzip
-        if [ ! -f staging_dir/host/bin/libdeflate-gzip ]; then
-          echo "Using system gzip as fallback"
-          ln -sf $(which gzip) staging_dir/host/bin/libdeflate-gzip
+        # 设置终端环境变量
+        echo 'export TERM=xterm-256color' >> $GITHUB_ENV
+        echo 'export NCURSES_NO_UTF8_ACS=1' >> $GITHUB_ENV
+        
+        # 修复递归依赖问题
+        if grep -q "PACKAGE_rd05a1" tmp/.config-package.in; then
+          sed -i '/PACKAGE_rd05a1/d' tmp/.config-package.in
         fi
 
-    - name: Build plugin
+    # 第七步：编译插件
+    - name: 编译插件
       run: |
         cd openwrt
-        # 配置仅编译插件
-        echo "CONFIG_PACKAGE_$PLUGIN_NAME=y" > .config
-        make defconfig
         
-        # 编译插件及其依赖
-        make package/utils/lua/host/compile -j$(nproc)
+        # 生成最小化配置
+        cat > .config <<EOF
+        CONFIG_PACKAGE_$PLUGIN_NAME=y
+        CONFIG_PACKAGE_lua=y
+        CONFIG_TERMINAL=y
+        EOF
+        
+        # 编译工具链和插件
+        make defconfig
+        make tools/compile -j$(nproc)
         make package/$PLUGIN_NAME/compile -j$(nproc) V=s
 
-    - name: Collect artifacts
+    # 第八步：收集编译成果
+    - name: 收集生成的插件包
       id: collect
       run: |
         cd openwrt
         # 查找生成的ipk文件
         IPK_FILE=$(find bin -name "${PLUGIN_NAME}*.ipk" | head -n 1)
         if [ -f "$IPK_FILE" ]; then
-          echo "Plugin built successfully: $IPK_FILE"
+          echo "插件编译成功: $IPK_FILE"
           mkdir -p plugin_output
           cp $IPK_FILE plugin_output/
           echo "status=success" >> $GITHUB_OUTPUT
           echo "IPK_PATH=$(pwd)/plugin_output" >> $GITHUB_ENV
         else
-          echo "Error: Plugin IPK file not found!"
+          echo "错误：未找到插件文件！"
           exit 1
         fi
 
-    - name: Create release
+    # 第九步：创建发布版本
+    - name: 创建发布版本
       if: steps.collect.outputs.status == 'success'
       run: |
         time=$(date +%Y.%m.%d)
         release_tag="plugin-${PLUGIN_NAME}-$time"
-        release_name="${PLUGIN_NAME}-$time"
+        release_name="${PLUGIN_NAME}-插件-$time"
         
-        echo "Automatically built ${PLUGIN_NAME} plugin" > release.txt
-        echo "Build date: $(date +'%Y-%m-%d %H:%M:%S')" >> release.txt
-        echo "Source repo: ${PLUGIN_REPO}" >> release.txt
-        echo "OpenWrt version: ${REPO_URL} (${REPO_BRANCH} branch)" >> release.txt
+        # 生成发布说明
+        echo "自动编译的 ${PLUGIN_NAME} 插件" > release.txt
+        echo "编译时间: $(date +'%Y-%m-%d %H:%M:%S')" >> release.txt
+        echo "源码仓库: ${PLUGIN_REPO}" >> release.txt
+        echo "OpenWrt版本: ${REPO_URL} (${REPO_BRANCH}分支)" >> release.txt
         
         echo "release_tag=$release_tag" >> $GITHUB_ENV
         echo "release_name=$release_name" >> $GITHUB_ENV
 
-    - name: Upload release
+    # 第十步：上传发布文件
+    - name: 上传插件到Release
       uses: softprops/action-gh-release@v1
       if: steps.collect.outputs.status == 'success'
       with:
@@ -122,16 +138,18 @@ jobs:
         draft: false
         prerelease: false
 
-    - name: Clean up old workflows
+    # 第十一步：清理旧工作流
+    - name: 清理旧的工作流记录
       uses: Mattraks/delete-workflow-runs@v2
       with:
-        retain_days: 0
-        keep_minimum_runs: 10
+        retain_days: 0      # 不保留历史记录
+        keep_minimum_runs: 10 # 保留最新的5条记录
 
-    - name: Clean up old releases
+    # 第十二步：清理旧发布
+    - name: 清理旧的Release
       uses: dev-drprasad/delete-older-releases@v0.2.1
       with:
-        keep_latest: 30
-        delete_tags: true
+        keep_latest: 30     # 保留最新的10个发布
+        delete_tags: true   # 同时删除关联标签
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
