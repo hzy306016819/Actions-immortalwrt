@@ -1,4 +1,4 @@
-name: 237-24.10-plugin-build
+name: 237-24.10-apk-build
 
 on:
   repository_dispatch:
@@ -125,6 +125,7 @@ jobs:
          release_name="237-ImmortalWrt-24.10-plugins-$time"
          echo "插件包：使用237大佬的源码编译
          237大佬源码网址: https://github.com/padavanonly/immortalwrt-mt798x-24.10
+         https://github.com/hzy306016819/luci-app-overview-widgets#插件包
          
          包含插件：
          - luci-app-passwall
