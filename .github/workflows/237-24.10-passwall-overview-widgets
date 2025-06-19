@@ -8,7 +8,7 @@ env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-24.10
   REPO_BRANCH: 2410
   FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: 237-24.10-passwall+ssid-auto6-5.config
+  CONFIG_FILE: 237-24.10-passwall-overview-widgets.config
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
   UPLOAD_BIN_DIR: false
@@ -111,6 +111,13 @@ jobs:
         cd openwrt/bin/targets/*/*
         rm -rf packages
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        
+        # 添加查找IPK文件的路径 - 返回上级目录查找IPK文件
+        cd ../../../
+        # 查找passwall和overview-widgets相关的所有IPK文件
+        IPK_PATH=$(find ./bin/packages -type f \( -name "luci-app-passwall*.ipk" -o -name "luci-app-overview-widgets*.ipk" \))
+        echo "IPK_FILES=$IPK_PATH" >> $GITHUB_ENV
+        
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: 上传固件到Github Action空间
@@ -153,6 +160,8 @@ jobs:
           ${{ env.FIRMWARE }}/*.bin
           ${{ env.FIRMWARE }}/*.img
           ${{ env.FIRMWARE }}/*.gz
+          # 添加IPK文件到上传列表 - 使用环境变量中的IPK文件路径
+          ${{ env.IPK_FILES }}
         draft: false
         prerelease: false
         fail_on_unmatched_files: false
