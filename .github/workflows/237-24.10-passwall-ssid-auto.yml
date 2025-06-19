@@ -1,6 +1,5 @@
 
-name: 237-24.10-passwall-ssid-auto
-
+name: 237-24.10-passwall-overview-widgets
 on:
   repository_dispatch:
   workflow_dispatch:
