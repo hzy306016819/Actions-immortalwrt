@@ -1,5 +1,5 @@
 
-name:overview-widgets-ipk
+name: overview-widgets-ipk
 on:
   repository_dispatch:
   workflow_dispatch:
