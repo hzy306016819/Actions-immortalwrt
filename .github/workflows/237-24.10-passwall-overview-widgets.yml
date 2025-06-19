@@ -112,10 +112,10 @@ jobs:
         rm -rf packages
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         
-        # 添加查找IPK文件的路径 - 返回上级目录查找IPK文件
-        cd ../../../
-        # 查找passwall和overview-widgets相关的所有IPK文件
-        IPK_PATH=$(find ./bin/packages -type f \( -name "luci-app-passwall*.ipk" -o -name "luci-app-overview-widgets*.ipk" \))
+        # 修改IPK文件查找路径 - 从openwrt根目录开始查找
+        cd $GITHUB_WORKSPACE/openwrt
+        # 查找所有相关IPK文件
+        IPK_PATH=$(find . -type f \( -name "luci-app-passwall*.ipk" -o -name "luci-app-overview-widgets*.ipk" \))
         echo "IPK_FILES=$IPK_PATH" >> $GITHUB_ENV
         
         echo "status=success" >> $GITHUB_OUTPUT
@@ -160,8 +160,9 @@ jobs:
           ${{ env.FIRMWARE }}/*.bin
           ${{ env.FIRMWARE }}/*.img
           ${{ env.FIRMWARE }}/*.gz
-          # 添加IPK文件到上传列表 - 使用环境变量中的IPK文件路径
-          ${{ env.IPK_FILES }}
+          # 修改IPK文件上传方式 - 使用通配符匹配
+          $GITHUB_WORKSPACE/openwrt/bin/packages/*/base/luci-app-passwall*.ipk
+          $GITHUB_WORKSPACE/openwrt/bin/packages/*/base/luci-app-overview-widgets*.ipk
         draft: false
         prerelease: false
         fail_on_unmatched_files: false
