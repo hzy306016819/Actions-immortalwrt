@@ -1,155 +1,133 @@
-name: Build luci-app-overview-widgets Plugin
 
+name:overview-widgets-ipk
 on:
-  workflow_dispatch:  # 手动触发
-  repository_dispatch:  # 仓库事件触发
+  repository_dispatch:
+  workflow_dispatch:
 
 env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-24.10
   REPO_BRANCH: 2410
-  PLUGIN_NAME: luci-app-overview-widgets
-  PLUGIN_REPO: https://github.com/hzy306016819/luci-app-overview-widgets.git
+  FEEDS_CONF: feeds.conf.default
+  CONFIG_FILE: 237-24.10-passwall-overview-widgets.config
+  DIY_P1_SH: diy-part1.sh
+  DIY_P2_SH: diy-part2.sh
+  UPLOAD_BIN_DIR: false
+  UPLOAD_FIRMWARE: true
+  UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
 
 jobs:
   build:
     runs-on: ubuntu-22.04
     permissions:
-      contents: write  # 允许写入发布内容
+      contents: write
 
     steps:
-    # 第一步：检出代码
-    - name: 检出仓库代码
+    - name: 检查项目分支
       uses: actions/checkout@v4
 
-    # 第二步：设置编译环境
     - name: 初始化编译环境
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        # 清理系统空间
         sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
         sudo docker image prune --all --force
-        
-        # 安装基本编译工具
-        sudo apt-get -qq update
-        sudo apt-get -qq install build-essential ccache flex gawk gettext git libncurses5-dev libssl-dev python3 python3-distutils zlib1g-dev
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libfuse-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libpython3-dev libreadline-dev libssl-dev libtool lrzsz mkisofs msmtp ninja-build p7zip p7zip-full patch pkgconf python2.7 python3 python3-pyelftools python3-setuptools qemu-utils rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
         sudo timedatectl set-timezone "$TZ"
-        
-        # 创建工作目录
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
+        echo "FIRMWARE_VERSION=$(date +"%y%m%d")" >> $GITHUB_ENV
+        echo "START_DATE=$(date +'%Y年%m月%d日 %H点%M分%S秒')" >> $GITHUB_ENV        
 
-    # 第三步：下载OpenWrt源码
-    - name: 克隆OpenWrt源码
+    - name: 下载源码
       working-directory: /workdir
       run: |
+        df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-    # 第四步：更新软件源
+    - name: 加载软件源
+      run: |
+        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+        chmod +x $DIY_P1_SH
+        cd openwrt
+        $GITHUB_WORKSPACE/$DIY_P1_SH
+
+    - name: 创建文件夹拉取overview-widgets软件源
+      run: cd openwrt && git clone https://github.com/hzy306016819/luci-app-overview-widgets.git package/overview-widgets
+
     - name: 更新软件源
-      run: |
-        cd openwrt
-        ./scripts/feeds update -a
-        ./scripts/feeds install -a
+      run: cd openwrt && ./scripts/feeds update -a
 
-    # 第五步：克隆插件源码
-    - name: 获取插件源代码
-      run: |
-        cd openwrt
-        git clone $PLUGIN_REPO package/$PLUGIN_NAME
+    - name: 安装软件源
+      run: cd openwrt && ./scripts/feeds install -a
 
-    # 第六步：修复已知问题
-    - name: 修复编译环境问题
+    - name: 加载自定义配置
       run: |
+        [ -e files ] && mv files openwrt/files
+        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+        chmod +x $DIY_P2_SH
         cd openwrt
-        
-        # 设置终端环境变量
-        echo 'export TERM=xterm-256color' >> $GITHUB_ENV
-        echo 'export NCURSES_NO_UTF8_ACS=1' >> $GITHUB_ENV
-        
-        # 修复递归依赖问题
-        if grep -q "PACKAGE_rd05a1" tmp/.config-package.in; then
-          sed -i '/PACKAGE_rd05a1/d' tmp/.config-package.in
-        fi
+        $GITHUB_WORKSPACE/$DIY_P2_SH
 
-    # 第七步：编译插件
-    - name: 编译插件
+    - name: 下载包
+      id: package
       run: |
         cd openwrt
-        
-        # 生成最小化配置
-        cat > .config <<EOF
-        CONFIG_PACKAGE_$PLUGIN_NAME=y
-        CONFIG_PACKAGE_lua=y
-        CONFIG_TERMINAL=y
-        EOF
-        
-        # 编译工具链和插件
         make defconfig
-        make tools/compile -j$(nproc)
-        make package/$PLUGIN_NAME/compile -j$(nproc) V=s
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
 
-    # 第八步：收集编译成果
-    - name: 收集生成的插件包
-      id: collect
+    - name: 编译插件
+      id: compile
       run: |
         cd openwrt
-        # 查找生成的ipk文件
-        IPK_FILE=$(find bin -name "${PLUGIN_NAME}*.ipk" | head -n 1)
-        if [ -f "$IPK_FILE" ]; then
-          echo "插件编译成功: $IPK_FILE"
-          mkdir -p plugin_output
-          cp $IPK_FILE plugin_output/
-          echo "status=success" >> $GITHUB_OUTPUT
-          echo "IPK_PATH=$(pwd)/plugin_output" >> $GITHUB_ENV
-        else
-          echo "错误：未找到插件文件！"
-          exit 1
-        fi
+        make package/overview-widgets/compile -j$(nproc) V=s
 
-    # 第九步：创建发布版本
-    - name: 创建发布版本
-      if: steps.collect.outputs.status == 'success'
+    - name: 检查存储空间
+      if: (!cancelled())
+      run: df -hT
+      
+    - name: 查找生成的IPK文件
+      id: find_ipk
       run: |
-        time=$(date +%Y.%m.%d)
-        release_tag="plugin-${PLUGIN_NAME}-$time"
-        release_name="${PLUGIN_NAME}-插件-$time"
-        
-        # 生成发布说明
-        echo "自动编译的 ${PLUGIN_NAME} 插件" > release.txt
-        echo "编译时间: $(date +'%Y-%m-%d %H:%M:%S')" >> release.txt
-        echo "源码仓库: ${PLUGIN_REPO}" >> release.txt
-        echo "OpenWrt版本: ${REPO_URL} (${REPO_BRANCH}分支)" >> release.txt
-        
-        echo "release_tag=$release_tag" >> $GITHUB_ENV
-        echo "release_name=$release_name" >> $GITHUB_ENV
-
-    # 第十步：上传发布文件
-    - name: 上传插件到Release
-      uses: softprops/action-gh-release@v1
-      if: steps.collect.outputs.status == 'success'
+        cd openwrt
+        IPK_PATH=$(find bin -name "luci-app-overview-widgets*.ipk")
+        echo "IPK_PATH=${IPK_PATH}" >> $GITHUB_OUTPUT
+        echo "IPK_FILE=$(basename ${IPK_PATH})" >> $GITHUB_OUTPUT
+    
+    - name: 上传IPK文件
+      uses: actions/upload-artifact@v4
       with:
-        tag_name: ${{ env.release_tag }}
-        name: ${{ env.release_name }}
-        body_path: release.txt
-        files: ${{ env.IPK_PATH }}/*.ipk
+        name: overview-widgets-ipk
+        path: openwrt/${{ steps.find_ipk.outputs.IPK_PATH }}
+
+    - name: 创建release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: overview-widgets-ipk-$(date +%Y%m%d%H%M)
+        name: "luci-app-overview-widgets IPK $(date +%Y-%m-%d)"
+        body: "Automatically built luci-app-overview-widgets IPK package"
+        files: openwrt/${{ steps.find_ipk.outputs.IPK_PATH }}
         draft: false
         prerelease: false
 
-    # 第十一步：清理旧工作流
-    - name: 清理旧的工作流记录
+    - name: 删除工作流运行
       uses: Mattraks/delete-workflow-runs@v2
       with:
-        retain_days: 0      # 不保留历史记录
-        keep_minimum_runs: 10 # 保留最新的5条记录
+        retain_days: 0       # 不保留历史记录
+        keep_minimum_runs: 10 # 但至少保留2个最新记录
 
-    # 第十二步：清理旧发布
-    - name: 清理旧的Release
+    - name: 删除旧的releases
       uses: dev-drprasad/delete-older-releases@v0.2.1
+      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
       with:
-        keep_latest: 30     # 保留最新的10个发布
-        delete_tags: true   # 同时删除关联标签
+        keep_latest: 30   # 保留最新的30个Release
+        delete_tags: true   # 同时删除关联的标签
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
