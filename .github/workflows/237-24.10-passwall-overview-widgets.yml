@@ -127,6 +127,13 @@ jobs:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
+    - name: 上传IPK包（packages）到Github Action空间
+      uses: actions/upload-artifact@v4
+      if: steps.organize.outputs.status == 'success' && !cancelled()
+      with:
+       name: OpenWrt_packages${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+       path: ${{ env.FIRMWARE }}/packages   
+
     - name: 创建release标签
       id: tag
       if: env.UPLOAD_RELEASE == 'true' && !cancelled()
