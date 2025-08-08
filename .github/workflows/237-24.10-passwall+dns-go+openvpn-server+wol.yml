@@ -56,12 +56,6 @@ jobs:
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
         
-    - name: 拉取overview-widgets
-      run: |
-        cd openwrt/package/feeds/luci/
-        git clone https://github.com/hzy306016819/luci-app-overview-widgets.git
-        cd ../../..
-
     - name: 更新软件源
       run: cd openwrt && ./scripts/feeds update -a
 
@@ -83,7 +77,13 @@ jobs:
         make defconfig
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
-        find dl -size -1024c -exec rm -f {} \;
+        find dl -size -1024c -exec rm -f {} \;  
+
+    - name: 拉取overview-widgets
+      run: |
+        cd openwrt/package/feeds/luci/
+        git clone https://github.com/hzy306016819/luci-app-overview-widgets.git
+        cd ../../..       
 
     - name: 编译固件
       id: compile
