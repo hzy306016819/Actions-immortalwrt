@@ -1,4 +1,4 @@
-name: 237-24.10-passwall+dns-go+openvpn-server+wol
+name: 237-24.10-passwall+dns-go+openvpn-server+wol+diy-part2
 
 on:
   repository_dispatch:
