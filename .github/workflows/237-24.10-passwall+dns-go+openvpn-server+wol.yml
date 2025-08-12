@@ -55,6 +55,15 @@ jobs:
         chmod +x $DIY_P1_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
+
+    - name: 拉取 luci-app-overview-widgets
+      run: |
+       cd openwrt
+       echo "拉取 luci-app-overview-widgets..."
+       mkdir -p package/feeds/luci/
+       cd package/feeds/luci/
+       git clone https://github.com/hzy306016819/luci-app-overview-widgets.git
+       cd ../../..  # 返回 openwrt 根目录
         
     - name: 更新软件源
       run: cd openwrt && ./scripts/feeds update -a
