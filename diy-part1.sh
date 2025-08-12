@@ -19,14 +19,14 @@
 
 
 # 1. 清理旧版 Go
-rm -rf feeds/packages/lang/golang
-rm -rf ./tmp/go-build ./dl/go-mod-cache
+sudo rm -rf feeds/packages/lang/golang
+sudo rm -rf ./tmp/go-build ./dl/go-mod-cache
 
 # 2. 添加高版本 Go 24.x
 git clone https://github.com/sbwml/packages_lang_golang -b 24.x feeds/packages/lang/golang
 
 # 3. 移除冲突的 v2ray-geodata
-rm -rf feeds/packages/net/v2ray-geodata
+sudo rm -rf feeds/packages/net/v2ray-geodata
 
 # 4. 添加 mosdns 和 v2ray-geodata
 git clone https://github.com/sbwml/luci-app-mosdns -b v5 package/mosdns
