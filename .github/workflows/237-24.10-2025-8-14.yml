@@ -1,13 +1,15 @@
+
 name: 237-24.10-2025-8-14
+
 on:
   repository_dispatch:
   workflow_dispatch:
 
 env:
-  REPO_URL: https://github.com/hzy306016819/237-immortalwrt-mt798x-24.10
+  REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-24.10
   REPO_BRANCH: 2410
   FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: 237-24.10-2005-8-14.config
+  CONFIG_FILE: 237-24.10-passwall.config
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
   UPLOAD_BIN_DIR: false
@@ -48,19 +50,13 @@ jobs:
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-    - name: 清理缓存
-      run: |
-       cd openwrt
-       make clean
-       rm -rf ./tmp ./dl
-    
     - name: 加载软件源
       run: |
         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
         chmod +x $DIY_P1_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
-        
+
     - name: 拉取 luci-app-overview-widgets
       run: |
        cd openwrt
@@ -69,7 +65,7 @@ jobs:
        cd package/feeds/luci/
        git clone https://github.com/hzy306016819/luci-app-overview-widgets.git
        cd ../../..  # 返回 openwrt 根目录
-        
+
     - name: 更新软件源
       run: cd openwrt && ./scripts/feeds update -a
 
@@ -91,7 +87,7 @@ jobs:
         make defconfig
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
-        find dl -size -1024c -exec rm -f {} \;        
+        find dl -size -1024c -exec rm -f {} \;
 
     - name: 编译固件
       id: compile
@@ -143,7 +139,7 @@ jobs:
          
          默认网关：192.168.100.10这个不确定
          登录密码：--
-         内置构建了passwall、eqos、xary、upnp、dns-go、openvpn-server、wol使用237-24.10-2025-8-14.config">> release.txt
+         内置构建了passwall、eqos、xary、upnp、">> release.txt
          echo "release_name=$release_name" >> $GITHUB_OUTPUT
          echo "release_tag=$release_tag" >> $GITHUB_OUTPUT
          echo "status=success" >> $GITHUB_OUTPUT
