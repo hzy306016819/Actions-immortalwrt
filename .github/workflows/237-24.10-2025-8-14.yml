@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-24.10
+  REPO_URL: https://github.com/hzy306016819/237-immortalwrt-mt798x-24.10
   REPO_BRANCH: 2410
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: 237-24.10-passwall.config
@@ -139,7 +139,13 @@ jobs:
          
          默认网关：192.168.100.10这个不确定
          登录密码：--
-         内置构建了passwall、eqos、xary、upnp、">> release.txt
+         内置构建了:luci-app-passwall
+                   luci-app-ddns-go
+                   luci-app-openvpn-server
+                   luci-app-overview-widgets
+                   luci-app-wol
+                   eqos、xary、upnp、
+         ">> release.txt
          echo "release_name=$release_name" >> $GITHUB_OUTPUT
          echo "release_tag=$release_tag" >> $GITHUB_OUTPUT
          echo "status=success" >> $GITHUB_OUTPUT
