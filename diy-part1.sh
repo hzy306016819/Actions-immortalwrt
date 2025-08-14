@@ -17,24 +17,6 @@
 #echo 'src-git helloworld https://github.com/fw876/helloworld' >>feeds.conf.default
 #echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >>feeds.conf.default
 
-
-# 1. 清理旧版 Go
-sudo rm -rf feeds/packages/lang/golang
-sudo rm -rf ./tmp/go-build ./dl/go-mod-cache
-
-# 2. 添加高版本 Go 24.x
-git clone https://github.com/sbwml/packages_lang_golang -b 24.x feeds/packages/lang/golang
-
-# 3. 移除冲突的 v2ray-geodata
-sudo rm -rf feeds/packages/net/v2ray-geodata
-
-# 4. 添加 mosdns 和 v2ray-geodata
-git clone https://github.com/sbwml/luci-app-mosdns -b v5 package/mosdns
-git clone https://github.com/sbwml/v2ray-geodata package/v2ray-geodata
-
-# 5. 确保目录权限（GitHub Actions 需要）
-chmod -R 755 package/mosdns package/v2ray-geodata
-
 # Add package
 # 增加ssid-auto到package/custom
 # mkdir -p openwrt/package/custom
