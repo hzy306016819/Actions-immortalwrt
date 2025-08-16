@@ -1,4 +1,4 @@
-name: 237-24.10-2025-8-16
+name: 237-24.10passwall=ddns-go=openvpn-server=wol=2025-8-16.config
 on:
   repository_dispatch:
   workflow_dispatch:
@@ -7,7 +7,7 @@ env:
   REPO_URL: https://github.com/hzy306016819/237-immortalwrt-mt798x-24.10
   REPO_BRANCH: 2410
   FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: 2025-8-16.config
+  CONFIG_FILE: 237-24.10passwall=ddns-go=openvpn-server=wol=2025-8-16.config
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
   UPLOAD_BIN_DIR: false
