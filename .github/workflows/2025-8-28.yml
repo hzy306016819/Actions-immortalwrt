@@ -135,7 +135,7 @@ jobs:
          内置构建了eqos、xary、upnp、
          ==============237-immortalwrt-mt798x-24.10==============================
          集成以下插件
-         luci-app-adguardhome
+         luci-app-adguardhome （引起编译失败，取消了）
          luci-app-ddns-go
          luci-app-docker
          luci-app-dockerman
