@@ -16,6 +16,8 @@
 # Add a feed source
 #echo 'src-git helloworld https://github.com/fw876/helloworld' >>feeds.conf.default
 #echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >>feeds.conf.default
+echo 'src-git netwizard https://github.com/sirpdboy/luci-app-netwizard' >>feeds.conf.default
+echo 'src-git overview https://github.com/hzy306016819/luci-app-overview-widgets' >>feeds.conf.default
 
 # Add package
 # 增加ssid-auto到package/custom
