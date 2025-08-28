@@ -126,10 +126,25 @@ jobs:
          release_name="237-ImmortalWrt-24.10-360T7-108m-$time"
          echo "固件：306T7-108m 使用的是237大佬的源码云编译
          237大佬源码网址: https://github.com/padavanonly/immortalwrt-mt798x-24.10
+         现改为：https://github.com/hzy306016819/237-immortalwrt-mt798x-24.10
          
-         默认网关：192.168.100.10这个不确定
+         默认网关：192.168.100.10
          登录密码：--
-         内置构建了passwall、eqos、xary、upnp、">> release.txt
+         内置构建了eqos、xary、upnp、
+         ==============237-immortalwrt-mt798x-24.10==============================
+         集成以下插件
+         luci-app-adguardhome
+         luci-app-ddns-go
+         luci-app-docker
+         luci-app-dockerman
+         luci-app-openvpn-serve
+         luci-app-overview-widgets
+         luci-app-passwall
+         luci-app-quickstart
+         luci-app-smartdns
+         luci-app-wol
+         =========================================================================   
+         ">> release.txt
          echo "release_name=$release_name" >> $GITHUB_OUTPUT
          echo "release_tag=$release_tag" >> $GITHUB_OUTPUT
          echo "status=success" >> $GITHUB_OUTPUT
@@ -157,8 +172,8 @@ jobs:
     - name: 删除工作流运行
       uses: Mattraks/delete-workflow-runs@v2
       with:
-        retain_days: 0       # 不保留历史记录
-        keep_minimum_runs: 10 # 但至少保留2个最新记录
+        retain_days: 10       # 不保留历史记录
+        keep_minimum_runs: 30 # 但至少保留2个最新记录
 
     - name: 删除旧的releases
       uses: dev-drprasad/delete-older-releases@v0.2.1
