@@ -137,12 +137,12 @@ jobs:
          集成以下插件
          luci-app-adguardhome （引起编译失败，取消了）
          luci-app-ddns-go
-         luci-app-docker
-         luci-app-dockerman
+         luci-app-docker         （取消）
+         luci-app-dockerman     （取消）
          luci-app-openvpn-serve
          luci-app-overview-widgets
          luci-app-passwall
-         luci-app-quickstart
+         luci-app-quickstart        （改为luci-app-netwizard）
          luci-app-smartdns
          luci-app-wol
          =========================================================================   
