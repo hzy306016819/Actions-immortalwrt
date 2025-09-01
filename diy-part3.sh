@@ -1,90 +1,99 @@
 #!/bin/bash
 # diy-part3.sh：生成首次启动网络配置脚本并集成到OpenWrt固件中
 
-NETCONFIG_BOOT_SRC="./openwrt/package/base-files/files/etc/init.d/netconfig-boot"
+NETCONFIG_BOOT_SRC="./openwrt/package/base-files/files/etc/uci-defaults/99-netconfig-boot"
 
 # 创建netconfig-boot启动脚本
 cat > "$NETCONFIG_BOOT_SRC" << 'EOF'
-#!/bin/sh /etc/rc.common
-# OpenWrt首次启动脚本：netconfig-boot
-START=99
+#!/bin/sh
 
-boot() {
-    # 日志文件保存在/root目录（永久存储）
-    LOG_FILE="/root/netconfig-boot.log"
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] netconfig-boot 首次启动执行..." > "$LOG_FILE"
+# 日志文件位置
+LOG_FILE="/root/netconfig-boot.log"
 
-    # 阶段1：检查网络连通性
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] 开始检查局域网192.168.100.253连通性..." >> "$LOG_FILE"
-    PING_RETRY=0
-    PING_MAX=10
-    PING_OK=0
-    
-    while [ $PING_RETRY -lt $PING_MAX ]; do
-        if ping -c 1 -W 2 192.168.100.253 > /dev/null 2>&1; then
-            echo "[$(date +'%Y-%m-%d %H:%M:%S')] 成功连接到192.168.100.253" >> "$LOG_FILE"
-            PING_OK=1
-            break
-        fi
-        PING_RETRY=$((PING_RETRY + 1))
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] 第$PING_RETRY次检查失败，等待6秒后重试..." >> "$LOG_FILE"
-        sleep 6
-    done
-
-    if [ $PING_OK -eq 0 ]; then
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] 错误：10次重试后仍无法连接到192.168.100.253" >> "$LOG_FILE"
-        return 1
-    fi
-
-    # 阶段2：下载网络配置脚本
-    REMOTE_URL="http://192.168.100.253/360T7/netconfig"
-    LOCAL_FILE="/tmp/netconfig"
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] 尝试下载：$REMOTE_URL" >> "$LOG_FILE"
-    
-    if ! wget -O "$LOCAL_FILE" "$REMOTE_URL" >> "$LOG_FILE" 2>&1; then
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] 错误：配置文件下载失败" >> "$LOG_FILE"
-        return 1
-    fi
-
-    chmod +x "$LOCAL_FILE"
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] 已下载并设置执行权限：$LOCAL_FILE" >> "$LOG_FILE"
-
-    # 阶段3：执行网络配置
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] 开始执行网络配置脚本..." >> "$LOG_FILE"
-    START_TIME=$(date +%s)
-    if "$LOCAL_FILE" >> "$LOG_FILE" 2>&1; then
-        END_TIME=$(date +%s)
-        DURATION=$((END_TIME - START_TIME))
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] 成功：netconfig 执行完成，耗时 ${DURATION}秒" >> "$LOG_FILE"
-    else
-        EXEC_CODE=$?
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] 错误：netconfig 执行失败，退出码：$EXEC_CODE" >> "$LOG_FILE"
-        return $EXEC_CODE
-    fi
-
-    # 阶段4：自删除处理
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] 开始执行自删除操作..." >> "$LOG_FILE"
-    
-    # 删除主脚本文件（必须）
-    SELF_PATH="/etc/init.d/netconfig-boot"
-    if [ -f "$SELF_PATH" ]; then
-        rm -f "$SELF_PATH"
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] 已删除自身脚本：$SELF_PATH" >> "$LOG_FILE"
-    fi
-
-    # 删除启动符号链接（推荐，保持系统整洁）
-    RC_LINK="/etc/rc.d/S99netconfig-boot"
-    if [ -L "$RC_LINK" ]; then
-        rm -f "$RC_LINK"
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] 已删除启动链接：$RC_LINK" >> "$LOG_FILE"
-    fi
-
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] netconfig-boot 流程执行完毕" >> "$LOG_FILE"
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] 脚本已自删除，日志保留在：$LOG_FILE" >> "$LOG_FILE"
+# 记录日志函数
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
 }
 
-start() { :; }
-stop() { :; }
+# 检查命令是否存在
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# 下载URL配置
+DOWNLOAD_URL="http://192.168.100.253/360T7/netconfig"
+TEMP_SCRIPT="/tmp/netconfig"
+
+log "开始执行netconfig-boot脚本"
+
+# 检查wget是否存在
+if ! command_exists wget; then
+    log "错误: 未找到wget命令，无法下载文件"
+    exit 0
+fi
+
+# 尝试下载网络配置脚本
+MAX_RETRIES=10
+RETRY_DELAY=6
+SUCCESS=0
+
+for i in $(seq 1 $MAX_RETRIES); do
+    # 检查目标服务器是否可达
+    if ping -c 1 -W 2 192.168.100.253 >/dev/null 2>&1; then
+        log "尝试第 $i/$MAX_RETRIES 次下载网络配置脚本"
+        
+        # 使用wget下载脚本，增加超时参数
+        if wget -q -T 5 -O "$TEMP_SCRIPT" "$DOWNLOAD_URL"; then
+            # 检查文件是否为空
+            if [ -s "$TEMP_SCRIPT" ]; then
+                log "下载成功"
+                SUCCESS=1
+                break
+            else
+                log "下载的文件为空，等待 ${RETRY_DELAY} 秒后重试"
+                rm -f "$TEMP_SCRIPT"
+            fi
+        else
+            log "下载失败，等待 ${RETRY_DELAY} 秒后重试"
+        fi
+    else
+        log "服务器不可达，等待 ${RETRY_DELAY} 秒后重试"
+    fi
+    
+    # 如果不是最后一次尝试，则等待
+    if [ $i -lt $MAX_RETRIES ]; then
+        sleep $RETRY_DELAY
+    fi
+done
+
+# 检查下载是否成功
+if [ $SUCCESS -eq 0 ]; then
+    log "错误: 经过 $MAX_RETRIES 次尝试后仍无法下载网络配置脚本"
+    exit 0  # 退出但不阻止系统继续启动
+fi
+
+# 给予执行权限
+if chmod +x "$TEMP_SCRIPT"; then
+    log "已成功给予netconfig脚本执行权限"
+else
+    log "错误: 无法给予netconfig脚本执行权限"
+    rm -f "$TEMP_SCRIPT"
+    exit 0
+fi
+
+# 执行netconfig脚本
+log "开始执行netconfig脚本"
+"$TEMP_SCRIPT" >> "$LOG_FILE" 2>&1
+EXEC_EXIT_CODE=$?
+log "netconfig脚本执行完成，退出码: $EXEC_EXIT_CODE"
+
+# 清理临时文件
+rm -f "$TEMP_SCRIPT"
+log "临时文件已清理"
+
+log "netconfig-boot脚本执行完成"
+exit 0
+
 EOF
 
 # 赋予执行权限
