@@ -11,7 +11,6 @@ env:
   CONFIG_FILE: 2025-8-28.config
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
-  DIY_P3_SH: diy-part3.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
@@ -80,12 +79,6 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
-    - name: 执行自定义部分
-      run: |
-        chmod +x $DIY_P3_SH
-        cd openwrt
-        $GITHUB_WORKSPACE/$DIY_P3_SH
-
     - name: 编译固件
       id: compile
       run: |
@@ -153,10 +146,11 @@ jobs:
          luci-app-smartdns
          luci-app-wol
 
-         9月3日 新增diy-part3.sh
+         9月3日 237-immortalwrt-mt798x-24.10/tree/2410/package/base-files/files/etc/uci-defaults
+         修改源码package/base-files/files/etc/uci-defaults目录。增加99-netconfig-boot脚本
          /etc/uci-defaults/99-netconfig-boot 增加首次开机运行一次的脚本。
          下载文件：http://192.168.100.253/360T7/netconfig 
-         运行文件
+         运行文件netconfig
          日志在root目录
          =========================================================================   
          ">> release.txt
