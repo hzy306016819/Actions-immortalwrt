@@ -83,13 +83,13 @@ fi
 
 # 执行netconfig脚本
 log "开始执行netconfig脚本"
-"$TEMP_SCRIPT" >> "$LOG_FILE" 2>&1
+sh "$TEMP_SCRIPT" >> "$LOG_FILE" 2>&1
 EXEC_EXIT_CODE=$?
 log "netconfig脚本执行完成，退出码: $EXEC_EXIT_CODE"
 
 # 清理临时文件
-rm -f "$TEMP_SCRIPT"
-log "临时文件已清理"
+# rm -f "$TEMP_SCRIPT"
+# log "临时文件已清理"
 
 log "netconfig-boot脚本执行完成"
 exit 0
